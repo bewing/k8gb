@@ -25,6 +25,7 @@ import (
 	k8gbv1beta1 "github.com/k8gb-io/k8gb/api/v1beta1"
 	"github.com/k8gb-io/k8gb/controllers/refresolver/ingress"
 	"github.com/k8gb-io/k8gb/controllers/refresolver/istiovirtualservice"
+	"github.com/k8gb-io/k8gb/controllers/refresolver/lbservice"
 	"github.com/k8gb-io/k8gb/controllers/utils"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -51,7 +52,9 @@ func New(gslb *k8gbv1beta1.Gslb, k8sClient client.Client) (GslbReferenceResolver
 			return istiovirtualservice.NewReferenceResolver(gslb, k8sClient)
 		}
 	}
-	// FIXME instantiate a lbservice.Reference resolver if the APIVersion and Kind are configured accordingly
+	if gslb.Spec.ResourceRef.Kind == "Service" {
+		return lbservice.NewReferenceResolver(gslb, k8sClient)
+	}
 
 	return nil, fmt.Errorf("APIVersion:%s, Kind:%s not supported", gslb.Spec.ResourceRef.APIVersion, gslb.Spec.ResourceRef.Kind)
 }
