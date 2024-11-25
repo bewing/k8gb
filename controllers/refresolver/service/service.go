@@ -1,4 +1,4 @@
-package lbservice
+package service
 
 /*
 Copyright 2022 The k8gb Contributors.
@@ -28,7 +28,7 @@ import (
 )
 
 type ReferenceResolver struct {
-	lbService *corev1.Service
+	service *corev1.Service
 }
 
 // NewReferenceResolver creates a reference resolver capable of understanding services of type loadbalancer
@@ -38,34 +38,23 @@ func NewReferenceResolver(gslb *k8gbv1beta1.Gslb, k8sClient client.Client) (*Ref
 		return nil, err
 	}
 
-	lbServiceList := []corev1.Service{}
-
-	for _, service := range serviceList {
-		if service.Spec.Type == "LoadBalancer" {
-			lbServiceList = append(lbServiceList, service)
-			log.Info().
-				Str("Name", service.Name).
-				Msg("Found LB Service")
-		}
-	}
-
-	if len(lbServiceList) != 1 {
-		return nil, fmt.Errorf("exactly 1 LB Service resource expected but %d were found", len(lbServiceList))
+	if len(serviceList) != 1 {
+		return nil, fmt.Errorf("exactly 1 Service resource expected but %d were found", len(serviceList))
 	}
 
 	return &ReferenceResolver{
-		lbService: &lbServiceList[0],
+		service: &serviceList[0],
 	}, nil
 }
 
 // GetServers retrieves the GSLB server configuration from the loadBalancer service
 func (rr *ReferenceResolver) GetServers(dnsZone string) ([]*k8gbv1beta1.Server, error) {
 	server := &k8gbv1beta1.Server{
-		Host: fmt.Sprintf("%s.%s", rr.lbService.Name, dnsZone),
+		Host: fmt.Sprintf("%s.%s", rr.service.Name, dnsZone),
 		Services: []*k8gbv1beta1.NamespacedName{
 			{
-				Name:      rr.lbService.Name,
-				Namespace: rr.lbService.Namespace,
+				Name:      rr.service.Name,
+				Namespace: rr.service.Namespace,
 			},
 		},
 	}
@@ -75,15 +64,26 @@ func (rr *ReferenceResolver) GetServers(dnsZone string) ([]*k8gbv1beta1.Server, 
 
 // GetGslbExposedIPs retrieves the load balancer IP address of the GSLB
 func (rr *ReferenceResolver) GetGslbExposedIPs(edgeDNSServers utils.DNSList) ([]string, error) {
-	gslbLbServiceIPs := []string{}
+	gslbServiceIPs := []string{}
 
-	for _, ingress := range rr.lbService.Status.LoadBalancer.Ingress {
-		if len(ingress.IP) > 0 {
-			gslbLbServiceIPs = append(gslbLbServiceIPs, ingress.IP)
+	switch rr.service.Spec.Type {
+	case "LoadBalancer":
+		for _, ingress := range rr.service.Status.LoadBalancer.Ingress {
+			if len(ingress.IP) > 0 {
+				gslbServiceIPs = append(gslbServiceIPs, ingress.IP)
+			}
+
 		}
+	case "ClusterIP":
+		if len(rr.service.Spec.ClusterIPs) > 0 {
+			gslbServiceIPs = rr.service.Spec.ClusterIPs
+		} else {
+			// TODO:  Support headless service direct access
+		}
+
 	}
 
-	return gslbLbServiceIPs, nil
+	return gslbServiceIPs, nil
 }
 
 func getGslbServiceRef(gslb *k8gbv1beta1.Gslb, k8sClient client.Client) ([]corev1.Service, error) {

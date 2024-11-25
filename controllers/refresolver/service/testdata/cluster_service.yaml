@@ -1,0 +1,22 @@
+
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: cluster-service
+  name: cluster-service
+  namespace: test-gslb
+spec:
+  type: ClusterIP
+  ClusterIP: "10.0.0.1"
+  ClusterIPs:
+  - "10.0.0.1"
+  ports:
+  - name: http
+    port: 8080
+    protocol: TCP
+    targetPort: 8080
+  selector:
+    app: lb-service
+status:
+  loadBalancer: {}

@@ -1,4 +1,4 @@
-package lbservice
+package service
 
 /*
 Copyright 2022 The k8gb Contributors.
@@ -53,7 +53,7 @@ func TestGetServers(t *testing.T) {
 			// arrange
 			svc := utils.FileToService(test.svcFile)
 			resolver := ReferenceResolver{
-				lbService: svc,
+				service: svc,
 			}
 
 			// act
@@ -87,13 +87,18 @@ func TestGetGslbExposedIPs(t *testing.T) {
 			svcFile:     "./testdata/lb_service_multiple_ips.yaml",
 			expectedIPs: []string{"10.0.0.1", "10.0.0.2"},
 		},
+		{
+			name:        "cluster IP",
+			svcFile:     "./testdata/cluster_service.yaml",
+			expectedIPs: []string{"10.0.0.1"},
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			// arrange
 			svc := utils.FileToService(test.svcFile)
 			resolver := ReferenceResolver{
-				lbService: svc,
+				service: svc,
 			}
 
 			// act
